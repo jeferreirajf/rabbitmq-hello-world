@@ -1,0 +1,60 @@
+version: '3'
+
+networks:
+  rabbitmq-network:
+    driver: bridge
+    internal: false
+    external: false
+    name: hello-world-rabbitmq
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    # volumes:
+    #   - ./rabbitmq/data:/var/lib/rabbitmq
+    #   - ./rabbitmq/log:/var/log/rabbitmq
+    environment:
+      RABBITMQ_ERLANG_COOKIE: "somecookie"
+      RABBITMQ_DEFAULT_USER: "someuser"
+      RABBITMQ_DEFAULT_PASS: "somepassword"
+      RABBITMQ_DEFAULT_VHOST: "/"
+    healthcheck:
+      test: "rabbitmqctl status"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - rabbitmq-network
+
+  producer:
+    build: ./producer
+    container_name: producer
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    restart: always
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - rabbitmq-network
+    links:
+      - rabbitmq
+    
+  consumer:
+    build: ./consumer
+    container_name: consumer
+    restart: always
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - rabbitmq-network
+    links:
+      - rabbitmq
+  
